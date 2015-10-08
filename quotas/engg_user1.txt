@@ -1,0 +1,8 @@
+// QUOTA FILE - DO NOT REMOVE THIS LINE!
+
+// For user engg_user1
+
+server_quota = 7;
+cpu_quota = 15;
+mem_quota = 7;    	// GB
+disk_quota = 600;   // GB

@@ -1,0 +1,302 @@
+<!--
+	CSA Widget - Resource usage quota display
+	Ben Coleman, March 2014
+	v2.0
+    v2.1  - Alternative version, less restrictive checking of properties, no longer only works with measurable properties
+
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="quota_widget">
+    <h4>Resource Quotas</h4>
+    <hr/>
+    <table width="100%" cellspacing="0">
+        <tr>
+            <td class="pietd">
+                <div id="server_chart" class="piechart"></div>
+                Servers
+                <div id="server_chart_label" class="pielabel">0</div>
+            </td>
+            <td class="pietd">
+                <div id="cpu_chart" class="piechart"></div>
+                CPUs
+                <div id="cpu_chart_label" class="pielabel">0</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="pietd">
+                <div id="mem_chart" class="piechart"></div>
+                Memory (GB)
+                <div id="mem_chart_label" class="pielabel">0</div>
+            </td>
+            <td class="pietd">
+                <div id="disk_chart" class="piechart"></div>
+                Disk (GB)
+                <div id="disk_chart_label" class="pielabel">0</div>
+            </td>
+        </tr>	
+    </table>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.pie.js"></script>
+<script type="text/javascript">
+var server_quota = 0;
+var cpu_quota = 0;
+var mem_quota = 0;
+var disk_quota = 0;
+loadQuotas();
+
+var server_total = 0;
+var cpu_total = 0;
+var mem_total = 0;
+var disk_total = 0;
+
+// Our journey starts here!
+refreshAllPies();
+getAllServicesQuota();
+
+//
+//	Callback function used to asynchronously handle the result of getAllServices
+//	
+function processServicesQuota(data, textStatus, apiXHR) {
+	// Loop over each svc instance
+	svc_index = 0;
+	for(svc_index = 0; svc_index < data.length; svc_index++) {
+		svc = data[svc_index]; // Get instance
+		// Invoke getTopology for each service
+		getTopologyQuota(svc.id)
+	}
+}
+
+//
+//	Callback function used to asynchronously handle the result of getTopology
+//	
+function processTopologyQuota(data, textStatus, apiXHR) {
+	// Loop over the nodes sub-array inside topology data
+	for(node_index = 0; node_index < data.nodes.length; node_index++) {
+		node = data.nodes[node_index]; // Get node
+		
+		// Skip pattern nodes
+		if(node.pattern) { continue }
+		
+		// If server - increase server count & grab server node properties for more detail
+		if(node.type.key == "SERVER") {
+			server_total++;
+			drawPie(server_total, server_quota, "server_chart");
+			getNodePropertiesQuota(data.id, node.id);
+		}
+		// If storage - grab storage node properties for more detail
+		if(node.type.key == "STORAGE_VOLUME") {
+			getNodePropertiesQuota(data.id, node.id)
+		}		
+	}
+}
+	
+//
+//	Callback function used to asynchronously handle the result of getNodeProperties
+//	
+function processNodeQuota(data, textStatus, apiXHR) {
+	// Loop over properties array inside node data
+	for(prop_index = 0; prop_index < data.properties.length; prop_index++) {
+		prop = data.properties[prop_index];
+		
+		// ALTERNATE VERSION Tweaked to pick up any properties not just those with measurable units
+		
+		//if (prop.unit != null && prop.unit !== undefined) {
+			// Handle CPU properties
+			if(prop.key.toLowerCase().indexOf("cpu") != -1) {
+				cpu_total += parseInt(prop.values[0]);
+				drawPie(cpu_total, cpu_quota, "cpu_chart");
+			}
+			// Try to guess memory properties
+			if(prop.key.toLowerCase().indexOf("mem") != -1) {
+				mem = prop.values[0];
+				mem = mem / 1024;
+				mem_total += mem;
+				drawPie(mem_total, mem_quota, "mem_chart");
+			}	
+			// Try to guess disk properties
+			if(prop.key.toLowerCase().indexOf("disk") != -1 || prop.key.toLowerCase().indexOf("vol")) {
+				disk = prop.values[0];
+				disk_total += parseInt(disk);
+				drawPie(disk_total, disk_quota, "disk_chart");
+			}	
+		//}
+	}
+}
+
+//
+//	Make AJAX call to CSA API to get all ACTIVE services
+//
+function getAllServicesQuota() {
+  $.ajax({
+		type: "GET",
+		url: "/api/myservice?count=256&status=ACTIVE&offset=0&sort=newest",
+		success: processServicesQuota,
+		error: errorLog
+	});
+}
+
+//
+//	Make AJAX call to CSA API to get the topology for a single service
+//
+function getTopologyQuota(svc_id) {
+  $.ajax({
+		type: "GET",
+		url: "/api/topology/" + svc_id,
+		success: processTopologyQuota,
+		error: errorLog
+	});
+}
+
+//
+//	Make AJAX call to CSA API to get the properties of a node inside a service topology
+//
+function getNodePropertiesQuota(svc_id, node_id) {
+  $.ajax({
+		type: "GET",
+		url: "/api/topology/" + svc_id + "/properties/" + node_id,
+		success: processNodeQuota,
+		error: errorLog
+	});
+}
+	
+//
+//	Make AJAX call to CSA API to get user info and load quota files
+//
+function loadQuotas() {
+  $.ajax({
+		type: "GET",
+		url: "/api/user",
+		success: function(data, textStatus, apiXHR) {
+			// get Username and Org name
+			uname = data.name;
+			org_name = data.tenant.name;
+
+			// Load default system wide quota file
+			var quotas = null;
+			quotas = readTextFile("quotas/defaults.txt");
+			
+			// Over ride with org specific quota file if found
+			temp = readTextFile("quotas/"+org_name+".txt");
+			if(temp.indexOf("QUOTA FILE") > 0) quotas = temp;
+
+			// Over ride with user specific quota file if found
+			temp = readTextFile("quotas/"+uname+".txt");
+			if(temp.indexOf("QUOTA FILE") > 0) quotas = temp;
+
+			// Eval quotas
+			eval(quotas);
+		},
+		error: errorLog,
+		async: false
+	});
+}
+
+//
+//	Simple error logging
+//
+function errorLog(apiXHR, textStatus, errorThrown) {
+	console.log("CSA API Error: " + errorThrown);
+}
+
+//
+//	Update a pie chart
+//
+function drawPie(total, quota, chart) {
+
+    // CSS and DOM stuff to cope with resizing
+	var wid = $(".pietd").width();
+	var hi = $(".pietd").height();
+
+	var new_wid = wid-40;
+	label_offset = -(hi/2)-25;
+
+	$(".piechart").each(function(index, value) {
+		$(value).css("width", new_wid);
+		$(value).css("height", new_wid);
+	});
+	$(".pielabel").each(function(index, value) {
+		$(value).css("top", label_offset);
+	});	
+
+	var col = "#26752C";
+    var label_total = total;
+    
+    // Maths and colouring stuff
+	if(total / quota > 0.75) {
+		col = "#f08100";
+	}
+	if(total >= quota) {
+		total = quota;
+		col = "#cb1b1f";
+	}
+	var data = [
+		{data: total,         color: col},
+		{data: quota - total, color: "#eeeeee"},
+	];
+
+    // Update inner text label
+	$('#' + chart + '_label').text(label_total);
+	// Update pie plot
+    $.plot('#' + chart, data, {
+		series: {
+			pie: {
+				radius: 0.98,
+				innerRadius: 0.5,
+				show: true,
+				stroke: {color: '#7A7896', width: 3},
+			}
+		}
+	});	
+	// Add tooltip to the chart
+	$('#'+chart).prop('title', label_total + " / " + quota);
+}
+
+//
+//	Detect and handle resizing
+//
+var id;
+$(window).resize(function() {
+	// use timer to prevent resize bouncing
+	clearTimeout(id);
+    id = setTimeout(refreshAllPies, 100);
+});
+
+//
+// Update all pie charts
+//
+function refreshAllPies() {
+	drawPie(server_total, server_quota, "server_chart");
+	drawPie(cpu_total, cpu_quota, "cpu_chart");
+	drawPie(mem_total, mem_quota, "mem_chart");
+	drawPie(disk_total, disk_quota, "disk_chart");
+}
+
+//
+// Helper function to read any text file
+//
+function readTextFile(file) {
+    var rawFileXHR = new XMLHttpRequest();
+    rawFileXHR.open("GET", file, false);
+    rawFileXHR.send(null);
+	//console.log(file +"STATUS="+rawFileXHR);
+	if(rawFileXHR.status === 200 || rawFileXHR.status == 0) {
+		return rawFileXHR.responseText;
+	}
+}
+</script>
+
+<style type="text/css">
+    #quota_widget {background-color:#7A7896; padding:5px; color:white;}
+    #quota_widget h4, #quota_widget hr { margin:0 0 5px 0; padding:0px;}
+    .pietd {text-align:center; color: white; margin:0px; padding:0px; vertical-align:middle;}
+    .piechart {width:75px; height:75px; margin: 0 auto; background-color:#7A7896;}
+    .pielabel {position: relative; top:-70px; z-index: 1; margin: 0 auto; margin-bottom:-25px; padding:0px; float:both;}
+</style>

@@ -1,0 +1,66 @@
+<!--
+   CSA Widget - Weather
+   Ben Coleman, July 2015
+   v1.0  - Initial version created for ETSS 
+   v1.1  - Tidied up for release
+-->
+
+<!-- HTML and widget display -->
+<div class="weather_widget">
+   <h4 class="weather_head">Current Weather</h4>
+   <hr/>
+   <img id="weather_icon" src="" class="weather_icon"/>
+   <div id="weather_text" class="weather_info"></div>
+   <div id="weather_loc" class="weather_info">Loading...</div>
+</div>
+
+<!-- Javascript and main code -->
+<script type="text/javascript">
+
+   // ###########################
+   // ## Change these values
+   // ###########################
+   APIKEY   = '_PUT_YOUR_API_KEY_HERE_'
+   // Register for a free account to get an API key - https://developer.worldweatheronline.com/auth/register
+   LOCATION = 'London'
+
+   // Start here, call some API
+   makeApiCall();
+
+   // Make AJAX call to external API, using jQuery
+   function makeApiCall(svc_id, node_id) {
+     $.ajax({
+         type: "GET",
+         url: "//api.worldweatheronline.com/free/v2/weather.ashx?q="+LOCATION+"&fx=no&key="+APIKEY+"&format=json",
+         success: processResult,
+         error: errorLog
+      });
+   }
+
+   // Callback function used to process data returned by the API
+   function processResult(apiresult, textStatus, apiXHR) {
+      var desc = apiresult.data.current_condition[0].weatherDesc[0].value;
+      var temp = apiresult.data.current_condition[0].temp_C;
+      var icon = apiresult.data.current_condition[0].weatherIconUrl[0].value;
+      icon = icon.substring(5);
+      var where = apiresult.data.request[0].query;
+      
+      //console.log("WEATHER: "+desc+" || "+icon+" || "+temp+" || "+where);
+      $('#weather_loc').text(where);
+      $('#weather_icon').attr('src', icon);
+      $('#weather_text').html(desc + " &raquo; "  + temp + "&deg;C");
+   }
+
+   // Simple error logging
+   function errorLog(apiXHR, textStatus, errorThrown) {
+      console.log("API Error: " + errorThrown);
+   }
+</script>
+
+<!-- Stylesheet -->
+<style type="text/css">
+    .weather_widget {background-color:#96B4E4; padding:5px; color:black;}
+    .weather_info {width: 90%; margin: 0 auto; font-size:24px; font-weight:bold}
+    .weather_icon {display:block; margin:auto; width:128px}
+    .weather_head { margin:0 0 5px 0; padding:0px;}
+</style>

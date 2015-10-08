@@ -1,0 +1,187 @@
+<!--
+	CSA Widget - Resource usage display
+	Ben Coleman, Dec 2014
+	v2.0
+	v2.1  - CSA 4.10 Fixes for background colour & new icons (18th Aug 2014)	
+	v2.2  - Alternative version, less restrictive checking of properties, no longer only works with measurable properties
+	v2.3  - Changed for CSA 4.5 WARNING! This version is not backward compatible
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="resource_widget">
+    <h4>Resource Usage</h4>
+    <hr/>
+    <table width="100%">
+        <tr>
+            <td class="restd">
+                <img class="resimg" src="/csa/images/library/HP_Embedded_Web_Server_RGB_blue_NT.png"><br/>
+                <span id="tot_servers">0</span> Servers
+            </td>
+            <td class="restd">
+                <img class="resimg" src="/csa/images/library/Multi-core_CPU_RGB_blue_NT.png"><br/>
+                <span id="tot_cpu">0</span> CPUs
+            </td>
+        </tr>
+        <tr style="height:10px;"></tr>
+        <tr>
+            <td class="restd">
+                <img class="resimg" src="/csa/images/library/Accountability_RGB_blue_NT.png"><br/>
+                <span id="tot_mem">0</span>GB Mem
+            </td>
+            <td class="restd">
+                <img class="resimg" src="/csa/images/library/Storage_domain_RGB_blue_NT.png"><br/>
+                <span id="tot_stor">0</span>GB Disk
+            </td>
+        </tr>	
+    </table>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<script type="text/javascript">
+
+// Start here, fetch all user's active services
+getAllServices();
+resizeImg();
+
+//
+//	Callback function used to asynchronously handle the result of getAllServices
+//	
+function processServices(data, textStatus, apiXHR) {
+	// Loop over each svc instance
+	svc_index = 0;
+	for(svc_index = 0; svc_index < data.length; svc_index++) {
+		svc = data[svc_index]; // Get instance
+		// Invoke getTopology for each service
+		getTopology(svc.id)
+	}
+}
+
+//
+//	Callback function used to asynchronously handle the result of getTopology
+//	
+function processTopology(data, textStatus, apiXHR) {
+	// Loop over the nodes sub-array inside topology data
+	for(node_index = 0; node_index < data.nodes.length; node_index++) {
+		node = data.nodes[node_index]; // Get node
+		
+		// Skip pattern nodes
+		if(node.pattern) { continue }
+		
+		// If server - increase server count & grab server node properties for more detail
+		if(node.type.key == "SERVER") {
+			increaseValue("#tot_servers", 1);
+			getNodeProperties(data.serviceInstance.id, node.id)
+		}
+		// If storage - grab storage node properties for more detail
+		if(node.type.key == "STORAGE_VOLUME") {
+			getNodeProperties(data.serviceInstance.id, node.id)
+		}		
+	}
+}
+	
+//
+//	Callback function used to asynchronously handle the result of getNodeProperties
+//	
+function processNode(data, textStatus, apiXHR) {
+	// Loop over properties array inside node data
+	for(prop_index = 0; prop_index < data.properties.length; prop_index++) {
+		prop = data.properties[prop_index];
+		
+		// Handle CPU properties
+		if(prop.key.toLowerCase().indexOf("cpu") != -1) {
+			cpu_count = prop.values[0];
+			increaseValue("#tot_cpu", cpu_count);
+		}
+		// Try to guess memory properties
+		if(prop.key.toLowerCase().indexOf("mem") != -1) {
+			mem = prop.values[0];
+			mem = mem / 1024;
+			increaseValue("#tot_mem", mem);		
+		}	
+		// Try to guess disk properties
+		if((prop.key.toLowerCase().indexOf("disk") != -1 || prop.key.toLowerCase().indexOf("vol") != -1)) {
+			disk = prop.values[0];
+			increaseValue("#tot_stor", disk);
+		}	
+	}
+}
+
+//
+//	Make AJAX call to CSA API to get all ACTIVE services
+//
+function getAllServices() {
+  $.ajax({
+		type: "GET",
+		url: "/api/myservice?count=256&status=ACTIVE&offset=0&sort=newest",
+		success: processServices,
+		error: errorLog
+	});
+}
+
+//
+//	Make AJAX call to CSA API to get the topology for a single service
+//
+function getTopology(svc_id) {
+  $.ajax({
+		type: "GET",
+		url: "/api/topology/" + svc_id,
+		success: processTopology,
+		error: errorLog
+	});
+}
+
+//
+//	Make AJAX call to CSA API to get the properties of a node inside a service topology
+//
+function getNodeProperties(svc_id, node_id) {
+  $.ajax({
+		type: "GET",
+		url: "/api/topology/" + svc_id + "/properties/" + node_id,
+		success: processNode,
+		error: errorLog
+	});
+}
+	
+//
+//	Simple error logging
+//
+function errorLog(apiXHR, textStatus, errorThrown) {
+	console.log("CSA API Error: " + errorThrown);
+}
+
+//
+//	Helper functions to update the UI
+//
+function increaseValue(id, val) {
+	temp = parseFloat($(id).text());
+	temp = temp + parseFloat(val);
+	$(id).text(temp);
+}
+
+$(window).resize(function() {
+	resizeImg()
+});
+
+function resizeImg() {
+	var wid = $(".restd").width();
+
+	var new_wid = wid-50 < 128 ? wid-50 : 128;
+
+	$(".resimg").each(function(index, value) {
+		$(value).css("width", new_wid);
+		$(value).css("height", new_wid);
+	});
+}
+
+</script>
+
+<style type="text/css">>
+    #resource_widget {background-color:#003F59; padding:5px; color:white;}
+    #resource_widget h4, #resource_widget hr { margin:0 0 5px 0; padding:0px;}
+    .restd {color: black; margin:0px; padding:0px; vertical-align:center; text-align:center}
+    .resimg {width: 48px; height:48px;}
+</style>

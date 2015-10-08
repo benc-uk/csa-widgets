@@ -1,0 +1,8 @@
+// QUOTA FILE - DO NOT REMOVE THIS LINE!
+
+// Organisation specific quotas
+
+server_quota = 24;
+cpu_quota = 16;
+mem_quota = 7;    	// GB
+disk_quota = 1800;   // GB

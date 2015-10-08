@@ -1,0 +1,44 @@
+
+<!-- HTML and widget display -->
+<div id="my_widget">
+   <h4>Widget Title</h4>
+   <hr/>
+   <div id="my_content">
+   </div>
+</div>
+
+<!-- Javascript and main code -->
+<script type="text/javascript">
+   // Start here, call some API
+   makeApiCall();
+
+   //	Make AJAX call to external API, using jQuery
+   function makeApiCall(svc_id, node_id) {
+     $.ajax({
+         type: "GET",
+         url: "http://api.nonsense.com/api/blah/12345",
+         success: processResult,
+         error: errorLog
+      });
+   }
+
+   //	Callback function used to process data returned by the API
+   function processResult(data, textStatus, apiXHR) {
+      var result = data.something;
+      $('#my_content').append("Hello World "+ result);
+   }
+
+   //	Simple error logging
+   function errorLog(apiXHR, textStatus, errorThrown) {
+      console.log("API Error: " + errorThrown);
+   }
+</script>
+
+<!-- Stylesheet -->
+<style type="text/css">>
+    #my_widget {background-color:#73B9FF; padding:5px; color:white;}
+</style>
+
+
+
+
