@@ -1,0 +1,90 @@
+<!--
+	CSA Widget - Request Notification Widget
+	Ben Coleman, March 2014
+    v2.0  - First release
+	v2.1  - CSA 4.10 Fixes for img sizes (24th July 2014)
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="notify_widget">
+  <h4>Recent Requests</h4>
+  <hr/>
+  <div width="100%" id="notify_table" class="not_table"></div>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<script src="bower_components/jquery/dist/jquery.js"></script>
+<script type="text/javascript">
+var max = 5;
+var timer_id;
+var refresh_interval_secs = 5;
+
+getRequests();
+
+//
+//	Callback function used to asynchronously handle the result of getNotifications
+//	
+function processRequests(data, textStatus, apiXHR) {
+
+	$("#notify_table").empty();
+	
+	// Loop over each request instance
+	var r_index;
+	for(r_index = 0; r_index < data.length; r_index++) {
+		var req = data[r_index];
+		//console.dir(req);
+		
+		// Tidy up state into nice readable English 
+		var nice_state = req.requestState.replace('_', ' ');
+		nice_state = nice_state.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+		if(nice_state == "Completed") nice_state = "Approved";
+		
+		var img_state = req.requestState.toLowerCase();
+		if(req.requestState == "IN_PROGRESS") {
+			img_state = "pending_approval";
+		}
+		
+		$("#notify_table").append("<div><img src='/csa/images/categories/request_state/"+img_state+".png'>"
+		+"&nbsp;&nbsp;<a href='/request/"+req.id+"'>"+"Request '"+req.displayName+"' is "+nice_state+"</a></div>");
+	}
+
+	clearTimeout(timer_id);
+	setTimeout(getRequests, refresh_interval_secs * 1000);
+}
+
+//
+//	Make AJAX call to CSA API to get all the requests
+//
+function getRequests() {
+
+	$.ajax({
+		type: "GET",
+		//url: "/test.json",
+		url: "/api/request?count="+max+"&offset=0&sort=newest",
+		success: processRequests,
+		error: errorLog
+	});
+}
+//
+//	Simple error logging
+//
+function errorLog(apiXHR, textStatus, errorThrown) {
+	console.log("CSA API Error: " + errorThrown);
+}    
+
+</script>
+
+<style type="text/css">
+    #notify_widget {background-color:#244837; padding:5px; color:white;}
+    #notify_widget h4, #notify_widget hr { margin:0 0 5px 0; padding:0px;}
+    .not_table div {text-align: left; color: white; font-size: 16px; border-bottom: 1px solid #6DB694;}
+    .not_table div img {width:18px !important; height:18px !important;}    
+    .not_table a:link {text-decoration:none; color:white;}
+    .not_table a:visited {text-decoration:none; color:white;}
+    .not_table a:hover {text-decoration:underline; color:white;}
+    .not_table a:active {text-decoration:underline; color:white;}
+</style>
