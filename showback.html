@@ -1,0 +1,133 @@
+<!--
+	CSA Widget - Micro showback report
+	Ben Coleman, March 2014
+	v2.0
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="showback_widget">
+    <h4>Costs <span id="showback_total_cur">&pound;</span><span id="showback_total">0</span></h4>
+    <hr/>
+    <table width="100%" id="showback_list" class="cost_table">
+        <tr><th>Name</th><th>Total Incurred</th></tr>
+    </table>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<script type="text/javascript">
+var total_cur;
+getAllSubscriptions();
+
+//
+//	Callback function used to asynchronously handle the result of getAllSubscriptions
+//	
+function processSubscriptionDetails(data, textStatus, apiXHR) {
+	//console.dir(data);
+	var col = 'white';
+    
+    // Get info about the sub
+	var init_price = data.initPrice.price;
+	var cur = data.initPrice.currency;
+	var rec_price = data.recurringPrice.price;
+	var period = data.recurringPrice.basedOn;
+	var startD = new Date(data.history[0].date);
+	var endD = new Date();
+    // Special case for cancelled subs
+	if(data.status == "CANCELLED") {
+		endD = new Date(data.lastUpdated);
+		col = '#000000';
+	}	
+    // Work out the "age" of the sub
+	var age = Math.abs(endD - startD) / 1000;
+    
+    // Currency symbol munge
+	if(cur == 'GBP') cur = "&pound;";
+	if(cur == 'USD') cur = "&#36;";
+	if(cur == 'EUR') cur = "&euro;";
+	$("#showback_total_cur").html(cur);
+	
+	// VERY simple billing calculation!
+    var intervals = 0;
+	if(period == "Hourly" ) {
+		intervals = age / 3600.0;
+	}
+	if(period == "Daily") {
+		intervals = age / 86400.0;
+	}
+	if(period == "Weekly") {
+		intervals = age / 604800.0;
+	}
+	if(period == "Monthly") {
+		intervals = age / 2440800.0;
+	}
+	
+	var total_price = init_price + (intervals * rec_price);
+	total_price = Math.round(total_price * 100) / 100;
+	var t_total = parseFloat($("#showback_total").text());
+	t_total += total_price;
+	$("#showback_total").text(Math.round(t_total * 100) / 100);
+	
+    // special case for pending subs
+    if(data.status == "PENDING") {
+		total_price = "0 (Pending)";
+		col = '#444444';
+	}
+	
+	$("#showback_list").append("<tr><td style='color:"+col+"'>" + data.name + "</td><td style='color:"+col+"'>" + cur + total_price + "</td></tr></li>");
+}
+
+//
+//	Callback function used to asynchronously handle the result of getAllSubscriptions
+//	
+function processSubscriptions(data, textStatus, apiXHR) {
+	// Loop over each sub instance
+	var sub_index;
+	for(sub_index = 0; sub_index < data.length; sub_index++) {
+		getSubscriptionDetail(data[sub_index].id);
+	}
+}
+
+//
+//	Make AJAX call to CSA API to get all the subscriptions
+//
+function getAllSubscriptions() {
+
+	$.ajax({
+		type: "GET",
+		url: "/api/subscription?count=256&offset=0&sort=newest",
+		success: processSubscriptions,
+		error: errorLog
+	});
+}
+
+//
+//	Make AJAX call to CSA API to get the details for a single subscription
+//
+function getSubscriptionDetail(sub_id) {
+
+	$.ajax({
+		type: "GET",
+		url: "/api/subscription/" + sub_id,
+		success: processSubscriptionDetails,
+		error: errorLog
+	});
+}
+
+//
+//	Simple error logging
+//
+function errorLog(apiXHR, textStatus, errorThrown) {
+	console.log("CSA API Error: " + errorThrown);
+}    
+</script>
+
+<style type="text/css">
+    #showback_widget {background-color:#777777; padding:5px; color:white;}
+    #showback_widget h4, #showback_widget hr { margin:0 0 5px 0; padding:0px; }
+    table.cost_table td {font-size:15px; text-align:left; color: white}
+    table.cost_table th {color:white}
+</style>
