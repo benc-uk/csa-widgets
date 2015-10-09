@@ -1,6 +1,6 @@
 // QUOTA FILE - DO NOT REMOVE THIS LINE!
 
-// Organisation specific quotas
+// Example quota file for organisation DEV_TEST
 
 server_quota = 24;
 cpu_quota = 16;
