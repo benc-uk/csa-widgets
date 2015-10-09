@@ -14,8 +14,8 @@
 |weather.html|Show the current weather details|
 |widget-skeleton.html|Example widget code|
 
-**Click here for an example of what each widget looks like**
+**[Click here for an example of what each widget looks like](https://github.com/benc-uk/csa-widgets/wiki/Widget-Preview-Images)**
 
 ### Installation & Usage 
 
-Please goto the wiki page 
+[Please goto the wiki page](https://github.com/benc-uk/csa-widgets/wiki)
