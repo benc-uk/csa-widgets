@@ -9,6 +9,7 @@
 |requests.html	|Auto refreshing widget showing last 5 requests|
 |resources-csa45.html|Resource breakdown (CPU, Mem, Disk, Servers) for CSA 4.5|
 |resources.html|Resource breakdown (CPU, Mem, Disk, Servers) for CSA 4.1/4.2|
+|showback.html|Simple subscription showback report|
 |subscriptions-report.html|Nice barchart report of subscriptions over time|
 |vcenter-widget.html|Displays info about vCenter loaded from XML file|
 |weather.html|Show the current weather details|
