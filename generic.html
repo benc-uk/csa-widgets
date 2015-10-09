@@ -1,0 +1,111 @@
+<!--
+	CSA Widget -Generic Widget
+	Khaled Belghith, May 2015
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="generic_widget">
+  <!-- Put the Title for the widget Here -->
+  <img class="widget_logo" src='images/vmwareLogo.jpg'>
+  <h4>vCenter Server</h4>
+  <hr/>
+  <div width="100%" id="generic_table" class="not_table"></div>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- script src="../bower_components/jquery/dist/jquery.js"></script>  -->
+<script type="text/javascript">
+
+var generic_timer_id;
+var generic_refresh_interval_secs = 5;
+var xmlFileName = "generic_input";
+
+processXmlFile();
+
+//
+//	function to parse the xml file and display the needed info
+//	
+function processXmlFile() {
+
+	$("#generic_table").empty();
+	
+	var xml = getFileContentAsAString("genericXml/" + xmlFileName + ".xml");
+	
+	//Parse the XML content
+	var xmlDoc = $.parseXML( xml ); 
+	var $xml = $(xmlDoc);
+	
+	// Find and Print Servers Details 
+	var $last_update = $xml.find("server-details");
+
+	$last_update.each(function(){
+		var ip = $(this).find('ip').text(),
+			name = $(this).find('name').text();
+		
+		$("#generic_table" ).append('<div class="updateTime">'  +name+ ' - ' +ip+ '</div>');
+		
+	});
+	
+	
+	// Find and print Last Update Date and Time 
+	var $last_update = $xml.find("last-update");
+
+	$last_update.each(function(){
+		var date = $(this).find('date').text(),
+			time = $(this).find('time').text();
+		
+		$("#generic_table" ).append('<div class="updateTime">Last Update:'  +date+ ' - ' +time+ '</div>');
+		
+	});
+	
+	// Find the Consumed Tag
+	var $person = $xml.find("consumed");
+
+	$person.each(function(){
+		var nbr_vms = $(this).find('nbr-vms').text(),
+			disk = $(this).find('disk').text(),
+			memory = $(this).find('memory').text(),
+			cpu = $(this).find('cpu').text();
+		
+		$("#generic_table" ).append('<div>Nbr VMs : ' +nbr_vms+ ' VMs</div>');
+		$("#generic_table" ).append('<div>Disk : ' +disk+ ' GB</div>');
+		$("#generic_table" ).append('<div>Memory : ' +memory+ ' GB</div>');
+		$("#generic_table" ).append('<div>CPU : ' +cpu+ ' vCPU</div>');
+		
+	});
+
+	clearTimeout(generic_timer_id);
+	setTimeout(processXmlFile, generic_refresh_interval_secs * 1000);
+}
+
+//
+// function to get the content of file as a string
+//
+function getFileContentAsAString(file) {
+    var xmlHttpRequest = new XMLHttpRequest();
+    xmlHttpRequest.open("GET", file, false);
+    xmlHttpRequest.send(null);
+	if(xmlHttpRequest.status == 200 || xmlHttpRequest.status == 0) {
+		return xmlHttpRequest.responseText;
+	}
+}  
+
+</script>
+
+<style type="text/css">
+    #generic_widget {background-color:#59323C; padding:10px; color:white;}
+	#generic_widget .widget_logo {width: 180px !important; padding-bottom: 5px;}
+    #generic_widget h4, #generic_widget hr { margin:0 0 5px 0; padding:0px; padding-bottom:0px;}
+    #generic_widget .not_table div {text-align: center; color: #F2EEB3; font-size: 16px; border-bottom: 1px solid #BFAF80; padding: 5px;}
+	#generic_widget .not_table div.updateTime {color: #BFAF80; font-size: 14px; border-bottom:none; padding-bottom: 2px; padding-top: 2px;}
+	#generic_widget .not_table div.updateTime:nth-child(2) {border-bottom: 1px solid white; padding-bottom: 10px;}
+    #generic_widget .not_table div img {width:18px !important; height:18px !important;}    
+    #generic_widget .not_table a:link {text-decoration:none; color:#F2EEB3;}
+    #generic_widget .not_table a:visited {text-decoration:none; color:#F2EEB3;}
+    #generic_widget .not_table a:hover {text-decoration:underline; color:#F2EEB3;}
+    #generic_widget .not_table a:active {text-decoration:underline; color:#F2EEB3;}
+</style> 

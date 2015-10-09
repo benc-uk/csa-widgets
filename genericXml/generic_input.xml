@@ -1,0 +1,17 @@
+<?xml version='1.0' ?>
+<xml>
+	<last-update>
+		<date>10-05-2015</date>
+		<time>22:11:52</time>
+	</last-update>
+	<server-details>
+		<name>VCENTER.lab.local</name>
+		<ip>195.154.50.65</ip>
+	</server-details>
+	<consumed>
+		<nbr-vms>27</nbr-vms>
+		<disk>2470</disk>
+		<memory>153.56</memory>
+		<cpu>72</cpu>
+	</consumed>
+</xml>

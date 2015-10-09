@@ -1,0 +1,163 @@
+<!--
+	CSA Widget - Subscriptions by Day 
+	Khaled Belghith, April 2015
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="subscriptions_widget">
+    <h4>Subscriptions by Day</h4>
+    <hr/>
+    <div id="placeholder" style="width:100%;height:90%;"></div>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.categories.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.stack.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.resize.js"></script>
+
+
+
+<script type="text/javascript">
+	var timer_id;
+	var refresh_interval_secs = 5;
+	
+	var d1 = [];
+	var d2 = [];
+	var d3 = [];
+	
+    var nbrGrads = 10;
+	var ms_perday = 86400000;
+	var today = new Date();
+	var month_names_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+	initData();
+	getAllSubscriptions();
+
+	//
+	//	init subscriptions data to be passed as input for the diagram 
+	//
+	function initData() {
+		for (var i = 1; i <= nbrGrads; i += 1) {
+			var date = new Date(today.getTime() - ((nbrGrads - i) * 24 * 60 * 60 * 1000));
+			var month = date.getUTCMonth(); 
+			var day = date.getUTCDate();
+			var newdate = month_names_short[month] + " " + day;
+			d1.push([newdate, 0]);
+			d2.push([newdate, 0]);
+			d3.push([newdate, 0]);
+		};
+	}
+	
+	//
+	// reset subscriptions data to be passed as input for the diagram 
+	//
+	function resetData() {
+		for (var i = 0; i < nbrGrads; i += 1) {
+			(d1[i])[1] = 0;
+			(d2[i])[1] = 0;
+			(d3[i])[1] = 0;
+		};
+	}
+	
+	//
+	//	Make AJAX call to CSA API to get all subscriptions
+	//
+	function getAllSubscriptions() {
+	  $.ajax({
+			type: "GET",
+			url: "/api/subscription?count=256",
+			success: processSubscriptions,
+			error: errorLog,
+			async: false
+		});
+	}
+	
+	//
+	//	Simple error logging
+	//
+	function errorLog(apiXHR, textStatus, errorThrown) {
+		console.log("CSA API Error: " + errorThrown);
+	}
+	
+		
+	//
+	//	Difference between two dates in nbr of days
+	//
+	function dateDiff(fromdate, todate) {	
+		var diff = todate - fromdate;	
+		return Math.floor(diff/ms_perday);
+	}
+	
+	//
+	//	increment the nbr of occurences in the data tab 
+	//  depending on the 
+	//
+	function incrementValue(tab, index) {	
+		if (index > 0){
+			var val = tab[index];
+			val[1]+= 1;
+		}
+	}
+	
+	//
+	//	Callback function used to asynchronously handle the result of getAllSubscriptions
+	//	
+	function processSubscriptions(data, textStatus, apiXHR) {
+		// Loop over each subs instance
+		resetData();
+		subs_index = 0;
+		for(subs_index = 0; subs_index < data.length; subs_index++) {
+			subs = data[subs_index]; // Get subscruption
+			start = subs.subscriptionTerm.startDate.substring(0,10);
+			var today = new Date();
+			var startDate = new Date(start);
+			dateIndex = nbrGrads - dateDiff(startDate,today) - 1;
+			if (subs.status == "CANCELLED"){
+				incrementValue(d3, dateIndex)
+			}else if (subs.status == "ACTIVE"){
+				incrementValue(d2, dateIndex)
+			}else if (subs.status == "TERMINATED"){
+                incrementValue(d1, dateIndex)
+			}
+		}
+		plotWithOptions();
+		clearTimeout(timer_id);
+		timer_id = setTimeout(getAllSubscriptions, refresh_interval_secs * 1000);
+	}
+	
+
+	function plotWithOptions() {
+		$.plot("#placeholder", [ {data: d1, label : " Terminated"},
+		                         {data: d2, label : " Active"},								 
+								 {data: d3, label : " Cancelled"} ], {
+			xaxis: {
+				mode: "categories",
+				tickLength: 0
+			},
+			series: {
+				stack: 1,
+				bars: {
+					show: true,
+					barWidth: 0.6,
+					align: "center"
+				} 
+			},
+			legend: { position: "nw" }
+		});
+	}
+
+	plotWithOptions();
+	
+</script>
+
+<style type="text/css">
+    #subscriptions_widget {padding:5px; color:black; height: 100%; /* make the percentage height on placeholder work */}
+    #subscriptions_widget h4, #subscriptions_widget hr { margin:0 0 5px 0; padding:0px;}
+    #subscriptions_widget .legend .legendLabel {text-align: left; padding-left:5px}
+</style>

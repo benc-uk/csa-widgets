@@ -1,0 +1,161 @@
+<!--
+	CSA Widget - Services Widget
+	Khaled Belghith, April 2015
+    v0.1  - First release
+-->
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- HTML and widget display -->
+<!-- -------------------------------------------------------------------------------------- -->
+<div id="currentservices_widget">
+	<h4>Current Services</h4>
+	<hr/>
+    <div id="placeholder_serv" style="width:100%;height:88%;"></div>
+</div>
+
+<!-- -------------------------------------------------------------------------------------- -->
+<!-- Javascript and main code -->
+<!-- -------------------------------------------------------------------------------------- -->
+<script src="bower_components/jquery/dist/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.js"></script>
+<script language="javascript" type="text/javascript" src="scripts/jquery.flot.pie.js"></script>
+<script type="text/javascript">
+
+	var timer_id;
+	var refresh_interval_secs = 5;
+	
+	var services_data = [];
+	var	nbrServicesStates = 13;
+	
+	var services_status = ['CANCELLED', 'RESERVED', 'FAILED', 'ACTIVE', 'DEPLOYING', 'IN_PROGRESS',
+							 'MODIFYING', 'MODIFY_FAILED', 'CANCELLING', 'CANCEL_FAILED', 'EXPIRING', 
+							 'EXPIRE_FAILED', 'PUBLIC_ACTION_FAILED' ];
+							 
+	for (var i = 0; i < nbrServicesStates ; i++) {
+		services_data[i] = {
+				label: services_status[i],
+				data: 0
+		};
+	};
+
+	var placeholder_serv = $("#placeholder_serv");
+	getCurrentServices();
+
+	// Show the initial default chart
+	displayCurrentServicesPie(placeholder_serv, services_data);
+
+	function initializeDataForServiceStatus(services_data, i, status){
+		services_data[i] = {
+				label: status,
+				data: 0
+		};	                                                                   
+	};
+	
+	function getStatusIndexFromStatus(status){
+		for(var i = 0; i < services_status.length; i++) {
+			if (services_status[i] == status)
+			return i;                                                               
+		};
+	};
+	
+	//
+	//	Make AJAX call to CSA API to get all current services
+	//
+	function getCurrentServices() {
+	  $.ajax({
+			type: "GET",
+			url: "/api/myservice?count=256",
+			success: processCurrentServices,
+			error: errorLog,
+			async: false
+		});
+	};
+	
+	//
+	//	Callback function used to asynchronously handle the result of getCurrentServices
+	//	
+	function processCurrentServices(data, textStatus, apiXHR) {
+		// Loop over each subs instance
+		servs_index = 0;
+		for(servs_index = 0; servs_index < data.length; servs_index++) {
+			serv = data[servs_index]; // Get service
+			var status = getStatusIndexFromStatus(serv.status);
+			services_data[status].data += 1; 
+		};
+		clearTimeout(timer_id);
+		timer_id = setTimeout(getCurrentServices, refresh_interval_secs * 1000);
+	}
+	
+	//
+	//	Simple error logging
+	//
+	function errorLog(apiXHR, textStatus, errorThrown) {
+		console.log("CSA API Error: " + errorThrown);
+	};
+	
+	// Display/update the pie chart	
+	function displayCurrentServicesPie(placeholder_serv, data) {
+
+		placeholder_serv.unbind();
+
+		$("#title").text("Label Radius");
+		$("#description").text("Slightly more transparent label backgrounds and adjusted the radius values to place them within the pie.");
+
+		$.plot(placeholder_serv, data, {
+			series: {
+				pie: { 
+					show: true,
+					radius: 1,
+					label: {
+						show: true,
+						radius: 3/4,
+						formatter: labelFormatter,
+						background: {
+							opacity: 0.5
+						}
+					}
+				}
+			},
+			legend: {
+				show: false
+			}
+		});
+
+		setCode([
+			"$.plot('#placeholder_serv', data, {",
+			"    series: {",
+			"        pie: {",
+			"            show: true,",
+			"            radius: 1,",
+			"            label: {",
+			"                show: true,",
+			"                radius: 3/4,",
+			"                formatter: labelFormatter,",
+			"                background: {",
+			"                    opacity: 0.5",
+			"                }",
+			"            }",
+			"        }",
+			"    },",
+			"    legend: {",
+			"        show: false",
+			"    }",
+			"});"
+		]);
+	};
+	
+	function setCode(lines) {
+		$("#code").text(lines.join("\n"));
+	};
+	
+	// A custom label formatter used by several of the plots
+	function labelFormatter(label, series) {
+		return "<div style='font-size:10pt; text-align:center; padding:2px; color:white;'>" + label + "<br/>" + Math.round(series.percent) + "%</div>";
+	};
+
+</script>
+
+<style type="text/css">
+    #currentservices_widget {padding:5px; color:black; /* make the percentage height on placeholder_serv work */}
+    #currentservices_widget h4, #currentservices_widget hr { margin:0 0 5px 0; padding:0px;}
+</style>
