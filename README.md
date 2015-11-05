@@ -1,6 +1,7 @@
 ## CSA Custom Widget Pack
 
 ### Widget Catalogue
+Brief description of each of the widgets
 |Filename|Description|
 |----|----|
 |current-services.html|Breakdown report of the status of user's services|
@@ -17,6 +18,6 @@
 
 **[Click here for an example of what each widget looks like](https://github.com/benc-uk/csa-widgets/wiki/Widget-Preview-Images)**
 
-### Installation & Usage 
+### Installation & Usage
 
 [Please goto the wiki page](https://github.com/benc-uk/csa-widgets/wiki)
